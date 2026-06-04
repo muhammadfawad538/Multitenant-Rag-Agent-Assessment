@@ -1,0 +1,77 @@
+Take-Home AI Engineer Assessment
+This assessment is designed to evaluate your approach, reasoning, and
+problem-solving—not perfection.
+You are welcome to attempt all sections and use any combination of tools or
+APIs. It’s perfectly fine if you don’t finish everything or if some parts aren’t fully
+correct.
+Please focus on clarity, justification, and trade-off reasoning. Tell us why you
+made your choices, what you would improve if you had more time, and how you
+would extend your solution for production.
+In short — do your best, explain your thinking, and have fun with it.
+Section A — Architecture (Take-Home, ~60 min)
+Deliverable (1–2 pages max):
+Design a multitenant, production-grade “Answering over External Data” system that
+combines RAG + Tools/Agents.
+Address (briefly):
+1. Data ingestion & indexing (chunking, embeddings, hybrid search).
+2. Agentic layer: how the “planner” chooses tools (e.g., web/search, weather, currency).
+3. Cost, latency & caching (prompt cache, vector cache, HTTP cache).
+4. Security & multitenancy (RBAC, per-tenant data isolation, audit logging, secret handling).
+5. Observability (traces, metrics, token/latency budgets, failure dashboards).
+6. Deployment (containerized, CI/CD, blue/green or canary)
+You may assume Azure (Functions/Container Apps + AI Search + Key Vault) or any
+equivalent cloud.
+Scoring (25%)
+● Clear, pragmatic design
+● Current best practices (2025): RAG + agent tools, evals, caching
+● Realistic cost/scale/risk trade-offs
+
+Section B — Coding (Take-Home, ~2–3 hrs)
+Build a small, production-minded “Agentic QA” service that chooses and calls live APIs as
+tools to answer user questions, then returns a grounded, cited answer.
+Core Requirements
+1. Tool-using:
+○ A simple planner or agent that decides which tool(s) to call based on the user
+query.
+○ Supports at least two live tools;
+2. Live tools (choose at least two):
+○ Web search with the following:
+https://api.duckduckgo.com/?q={query}&format=json&no_html=1
+○ Dummy tool that returns weather data to the agent.
+3. Tool schema & structured I/O:
+○ Each tool exposes a clear schema (inputs, outputs).
+○ The LLM (or your planner) must produce/consume JSON for tool calls and final
+structured output:
+{
+"answer": "string",
+"sources": [{"name":"string","url":"string"}],
+"latency_ms": {"total": 123, "by_step": {"retrieve": 45, "llm": 60}},
+"tokens": {"prompt": 0, "completion": 0}
+}
+
+4. Reasoning quality:
+○ The agent explains which tools it used and cites sources in the final answer.
+
+Tech Choices
+● Python 3.10+
+● You may use LangChain or Semantic Kernel—but also show your core agent loop
+(planner + tool registry) in your own code.
+● HTTP: httpx or requests
+● Tracing/metrics: simple stdout JSON logs are fine
+
+What to Submit
+● Repo or zip with source, tests, README.md
+● .env.example
+
+Scoring (45%)
+● Correct tool selection & reasoning
+● Code quality & structure; tests
+● Robustness (retries, timeouts, caching)
+● Latency awareness & parallelism
+● Clear, cited answers with structured JSON
+Nice-to-Haves (Bonus Points)
+● Streaming answers
+● JSON Schema validation of tool I/O
+● Simple policy layer (e.g., block network calls for disallowed domains)
+● Dockerfile + one-liner run
+● Basic concurrency limits (semaphores) for tools

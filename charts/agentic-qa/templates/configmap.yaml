@@ -1,0 +1,145 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "agentic-qa.fullname" . }}-config
+  labels:
+    {{- include "agentic-qa.labels" . | nindent 4 }}
+    config-type: "application"
+data:
+  # Application configuration
+  app-config.yaml: |
+    # Agentic QA Service Configuration
+    # AI Engineer Assessment - Production Configuration
+
+    # Application settings
+    application:
+      name: "Agentic QA Service"
+      version: "1.0.0"
+      environment: "production"
+
+    # Agent configuration
+    agent:
+      model: "gemini-1.5-flash"
+      max_tokens: 2048
+      temperature: 0.7
+      enable_parallel_execution: true
+
+    # Tool registry configuration
+    tools:
+      enabled:
+        - search_duckduckgo
+        - get_weather
+      timeout_seconds: 30
+      max_retries: 3
+
+    # Search tool configuration
+    search:
+      provider: "duckduckgo"
+      base_url: "https://api.duckduckgo.com/"
+      format: "json"
+      no_html: 1
+      max_results: 10
+
+    # Weather tool configuration
+    weather:
+      provider: "dummy"
+      default_unit: "celsius"
+      locations:
+        - "Tokyo"
+        - "London"
+        - "New York"
+        - "Paris"
+        - "Berlin"
+
+    # Caching configuration
+    caching:
+      enabled: {{ .Values.redis.enabled }}
+      ttl_seconds: 3600
+      cache_levels:
+        - "prompt"
+        - "vector"
+        - "http"
+
+    # Multitenancy configuration
+    multitenancy:
+      enabled: false  # Ready for expansion
+      isolation_level: "namespace"
+      rbac_enabled: false
+
+    # Observability configuration
+    observability:
+      logging:
+        level: {{ .Values.env.LOG_LEVEL }}
+        format: "json"
+      metrics:
+        enabled: {{ .Values.metrics.enabled }}
+        port: 9090
+      tracing:
+        enabled: false
+        provider: "jaeger"
+
+    # Security configuration
+    security:
+      allowed_domains: {{ .Values.env.ALLOWED_DOMAINS }}
+      rate_limiting:
+        enabled: true
+        requests_per_minute: 60
+      audit_logging:
+        enabled: {{ .Values.postgresql.enabled }}
+
+    # Performance tuning
+    performance:
+      max_workers: {{ .Values.env.MAX_WORKERS }}
+      request_timeout: {{ .Values.env.REQUEST_TIMEOUT }}
+      connection_pool_size: 20
+
+  # Nginx configuration for future ingress
+  nginx.conf: |
+    # Nginx configuration for Agentic QA Service
+    # This is used when ingress is enabled
+
+    server {
+        listen 80;
+        server_name {{ range .Values.ingress.hosts }}{{ .host }}{{ end }};
+
+        location / {
+            proxy_pass http://{{ include "agentic-qa.fullname" . }}:{{ .Values.service.port }};
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            # Timeouts
+            proxy_connect_timeout 30s;
+            proxy_send_timeout 30s;
+            proxy_read_timeout 30s;
+        }
+
+        location /health {
+            proxy_pass http://{{ include "agentic-qa.fullname" . }}:{{ .Values.service.port }}/health;
+            access_log off;
+        }
+
+        location /docs {
+            proxy_pass http://{{ include "agentic-qa.fullname" . }}:{{ .Values.service.port }}/docs;
+        }
+    }
+
+  # Prometheus scrape configuration
+  prometheus-scrape.yaml: |
+    # Prometheus scrape configuration for metrics
+    {{- if .Values.metrics.enabled }}
+    - job_name: 'agentic-qa'
+      scrape_interval: {{ .Values.metrics.serviceMonitor.interval }}
+      scrape_timeout: {{ .Values.metrics.serviceMonitor.scrapeTimeout }}
+      metrics_path: /metrics
+      scheme: http
+      static_configs:
+        - targets:
+            - '{{ include "agentic-qa.fullname" . }}:{{ .Values.service.port }}'
+      relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_name]
+          target_label: pod
+        - source_labels: [__meta_kubernetes_namespace]
+          target_label: namespace
+    {{- end }}
